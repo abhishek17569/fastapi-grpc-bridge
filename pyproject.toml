@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-grpc-bridge"
-version = "0.1.1"
+version = "0.1.2"
 description = "Adds gRPC support to FastAPI apps using decorators and Pydantic auto-generation"
 readme = "README.md"
 requires-python = ">=3.7"
