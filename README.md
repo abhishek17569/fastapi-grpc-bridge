@@ -1,18 +1,24 @@
 # FastAPI gRPC Bridge
 
-A Python package that seamlessly adds gRPC support to FastAPI applications using decorators. It automatically generates Protocol Buffer definitions from Pydantic models and creates gRPC services that mirror your FastAPI routes.
+A Python package that seamlessly adds gRPC support to FastAPI applications using decorators. It automatically generates Protocol Buffer definitions from Pydantic models and creates gRPC services that mirror your FastAPI routes.  
+[![PyPI Version](https://img.shields.io/pypi/v/fastapi-grpc-bridge)](https://pypi.org/project/fastapi-grpc-bridge/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-grpc-bridge)](https://pypi.org/project/fastapi-grpc-bridge/)
+[![License: MIT](https://img.shields.io/pypi/l/fastapi-grpc-bridge)](https://github.com/abhishek17569/fastapi-grpc-bridge/blob/main/LICENSE)
+
 
 ## Features
 
 - 🚀 **Easy Integration**: Add gRPC support to existing FastAPI apps with a simple decorator
 - 🔄 **Auto Proto Generation**: Automatically generates `.proto` files from Pydantic models
 - 📡 **Dual Protocol Support**: Serve both HTTP and gRPC from the same codebase
+- 🔐 **Enterprise Security**: Full TLS and mTLS support with certificate management
 - ⚡ **Auto-Start gRPC**: Automatically starts gRPC server when FastAPI starts (configurable)
 - 🎯 **Type Safety**: Full type safety with Pydantic models
 - 🔧 **FastAPI Router Support**: Works with FastAPI routers and sub-applications
 - 🌐 **Async Support**: Full support for async/await functions
+- 🛡️ **Flexible Configuration**: Support for environment variables, dictionaries, and objects
 
-## Installation
+## Installation [![PyPI Version](https://img.shields.io/pypi/v/fastapi-grpc-bridge)](https://pypi.org/project/fastapi-grpc-bridge/)
 
 ```bash
 pip install fastapi-grpc-bridge
@@ -33,7 +39,7 @@ class HelloResponse(BaseModel):
     message: str
 
 @app.get("/hello")
-@grpc_route("/hello")
+@grpc_route
 async def say_hello(name: str) -> HelloResponse:
     return HelloResponse(message=f"Hello, {name}!")
 
@@ -46,11 +52,11 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-### 2. Manual gRPC Server Control
+### 2. Secure gRPC with TLS
 
 ```python
 from fastapi import FastAPI
-from fastapi_grpc_bridge import grpc_route, add_grpc_support, start_grpc_server_standalone
+from fastapi_grpc_bridge import grpc_route, add_grpc_support, create_secure_grpc_config
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -59,33 +65,125 @@ class HelloResponse(BaseModel):
     message: str
 
 @app.get("/hello")
-@grpc_route("/hello")
+@grpc_route
 async def say_hello(name: str) -> HelloResponse:
     return HelloResponse(message=f"Hello, {name}!")
 
-# Disable auto-start
-add_grpc_support(app, auto_start_grpc=False)
+# Create secure configuration
+config = create_secure_grpc_config(
+    cert_file="path/to/server.crt",
+    key_file="path/to/server.key"
+)
 
-# Start gRPC server manually in a separate script
+# Add secure gRPC support
+add_grpc_support(app, config=config)
+
 if __name__ == "__main__":
-    start_grpc_server_standalone()  # Or use this for standalone gRPC server
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-### 3. Start Both Services
+### 3. Mutual TLS (mTLS) Configuration
 
-**Option A: Auto-Start (Single Command)**
-```bash
-python app.py
-# This starts both FastAPI (HTTP) on port 8000 and gRPC on port 50051
+```python
+from fastapi_grpc_bridge import create_secure_grpc_config
+
+# mTLS configuration
+config = create_secure_grpc_config(
+    cert_file="path/to/server.crt",
+    key_file="path/to/server.key",
+    ca_cert_file="path/to/ca.crt",
+    enable_mtls=True,
+    client_cert_required=True
+)
+
+add_grpc_support(app, config=config)
 ```
 
-**Option B: Manual Start (Separate Commands)**
-```bash
-# Terminal 1: Start FastAPI
-uvicorn app:app --host 0.0.0.0 --port 8000
+## Security Features
 
-# Terminal 2: Start gRPC server
-python -c "from app import app; from fastapi_grpc_bridge import start_grpc_server_standalone; start_grpc_server_standalone()"
+### 🔐 TLS/mTLS Support
+
+The package provides enterprise-grade security with:
+
+- **TLS Encryption**: Secure server-client communication
+- **Mutual TLS (mTLS)**: Bidirectional certificate authentication
+- **Certificate Management**: Built-in certificate validation and utilities
+- **Flexible Configuration**: Multiple ways to configure security settings
+
+### Security Configuration Methods
+
+**1. Using Configuration Objects:**
+```python
+from fastapi_grpc_bridge import GRPCSecurityConfig, TLSConfig, MTLSConfig
+
+config = GRPCSecurityConfig(
+    insecure=False,
+    tls=TLSConfig(
+        enabled=True,
+        cert_file="server.crt",
+        key_file="server.key",
+        ca_cert_file="ca.crt"
+    ),
+    mtls=MTLSConfig(
+        enabled=True,
+        client_cert_required=True,
+        ca_cert_file="ca.crt"
+    )
+)
+```
+
+**2. Using Environment Variables:**
+```bash
+export GRPC_INSECURE=false
+export GRPC_TLS_ENABLED=true
+export GRPC_TLS_CERT_FILE=server.crt
+export GRPC_TLS_KEY_FILE=server.key
+export GRPC_TLS_CA_CERT_FILE=ca.crt
+export GRPC_MTLS_ENABLED=true
+export GRPC_MTLS_CLIENT_CERT_REQUIRED=true
+```
+
+```python
+from fastapi_grpc_bridge import GRPCSecurityConfig
+
+config = GRPCSecurityConfig.from_env()
+add_grpc_support(app, config=config)
+```
+
+**3. Using Dictionaries:**
+```python
+config_dict = {
+    "insecure": False,
+    "tls": {
+        "enabled": True,
+        "cert_file": "server.crt",
+        "key_file": "server.key",
+        "ca_cert_file": "ca.crt"
+    },
+    "mtls": {
+        "enabled": True,
+        "client_cert_required": True,
+        "ca_cert_file": "ca.crt"
+    }
+}
+
+config = GRPCSecurityConfig.from_dict(config_dict)
+```
+
+### Client Credentials
+
+Create secure client connections:
+
+```python
+from fastapi_grpc_bridge import create_client_credentials
+import grpc
+
+# Create client credentials
+credentials = create_client_credentials(config)
+
+# Use with gRPC client
+channel = grpc.secure_channel('localhost:50051', credentials)
 ```
 
 ## Working with FastAPI Routers
@@ -104,7 +202,7 @@ class UserResponse(BaseModel):
     email: str
 
 @api_router.get("/user")
-@grpc_route("/user")
+@grpc_route
 async def get_user(user_id: int) -> UserResponse:
     return UserResponse(
         id=user_id,
@@ -135,33 +233,41 @@ The package automatically maps Python types to Protocol Buffer types:
 
 ## API Reference
 
-### `@grpc_route(path: str, response_model: Optional[Type[BaseModel]] = None)`
+### Core Functions
 
+#### `@grpc_route`
 Decorator to add gRPC support to FastAPI routes.
 
-**Parameters:**
-- `path`: Route path (used for naming the gRPC service)
-- `response_model`: Pydantic model for the response (optional if return annotation is provided)
-
-### `add_grpc_support(app_or_router, auto_start_grpc=True)`
-
+#### `add_grpc_support(app, config=None, auto_start_grpc=True)`
 Add gRPC support to a FastAPI app or router.
 
 **Parameters:**
-- `app_or_router`: FastAPI app or APIRouter instance
-- `auto_start_grpc`: Whether to automatically start gRPC server when FastAPI starts (default: True)
+- `app`: FastAPI app or APIRouter instance
+- `config`: Security configuration (GRPCSecurityConfig, dict, or None for insecure)
+- `auto_start_grpc`: Whether to automatically start gRPC server (default: True)
 
-### `start_grpc_server_standalone()`
+#### `create_secure_grpc_config(**kwargs)`
+Convenience function to create secure gRPC configuration.
 
-Start the gRPC server in standalone mode (for manual control).
+**Parameters:**
+- `cert_file`: Server certificate file path
+- `key_file`: Server private key file path  
+- `ca_cert_file`: CA certificate file path (optional)
+- `enable_mtls`: Enable mutual TLS (default: False)
+- `client_cert_required`: Require client certificates for mTLS (default: True)
+- `host`: Server host (default: "[::]")
+- `port`: Server port (default: 50051)
 
-## Examples
+### Security Classes
 
-See the `examples/` directory for complete working examples:
+#### `GRPCSecurityConfig`
+Main configuration class for gRPC security settings.
 
-- `examples/app.py`: Complete example with auto-start functionality
-- `examples/start_grpc_server.py`: Standalone gRPC server launcher
-- `examples/test_auto_start.py`: Test script to verify both services
+#### `TLSConfig`
+Configuration for TLS settings.
+
+#### `MTLSConfig`
+Configuration for mutual TLS settings.
 
 ## Testing Your Services
 
@@ -172,7 +278,21 @@ curl "http://localhost:8000/api/user?user_id=123"
 curl "http://localhost:8000/health"  # Shows gRPC routes status
 ```
 
-### Test gRPC Service
+### Test Secure gRPC Service
+```python
+import grpc
+from fastapi_grpc_bridge import create_client_credentials
+
+# Create secure channel
+config = create_secure_grpc_config(ca_cert_file="ca.crt")
+credentials = create_client_credentials(config)
+channel = grpc.secure_channel('localhost:50051', credentials)
+
+# Use the channel for gRPC calls
+# ... (rest of gRPC client code)
+```
+
+### Test Insecure gRPC Service
 ```python
 import grpc
 import sys
@@ -195,15 +315,6 @@ if __name__ == "__main__":
     test_grpc_service()
 ```
 
-### Automated Testing
-```bash
-# Start the app
-python examples/app.py &
-
-# Run tests
-python examples/test_auto_start.py
-```
-
 ## Generated Files
 
 The package automatically generates:
@@ -213,24 +324,34 @@ The package automatically generates:
 
 ## Configuration
 
-### Ports
+### Default Ports
 - **HTTP**: 8000 (configurable via uvicorn)
-- **gRPC**: 50051 (fixed, can be modified in `grpc_server.py`)
+- **gRPC**: 50051 (configurable via GRPCSecurityConfig)
+
+### Security Modes
+- **Insecure**: Default mode for development (no encryption)
+- **TLS**: Server-side encryption with certificates
+- **mTLS**: Mutual authentication with client and server certificates
 
 ### Auto-Start Behavior
 - **Default**: gRPC server auto-starts when FastAPI starts
 - **Disable**: Set `auto_start_grpc=False` in `add_grpc_support()`
 - **Manual**: Use `start_grpc_server_standalone()` for manual control
 
+## Documentation
+
+- **Security Guide**: See `SECURITY_README.md` for comprehensive security documentation
+- **Examples**: Check the `examples/` directory for working examples
+- **API Reference**: Complete API documentation in the source code
+
 ## Requirements
 
 - Python 3.7+
 - FastAPI
-- Pydantic
+- Pydantic  
 - grpcio
 - grpcio-tools
-- requests (for testing)
 
 ## License
 
-MIT License 
+This project is licensed under the MIT License - see the LICENSE file for details. 
